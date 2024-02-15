@@ -24,3 +24,8 @@ To install the program to your system, use
     # zig build -p /usr/local/
 
 and make sure you have `/usr/local/bin` in your $PATH variable
+
+## TODO
+* Formatting time in seconds currently does not work.
+* Create a source plugin to allow auto recording of demos (similar to p-rec)
+* Make sure that this works cross-platform (specifically on Windows)
