@@ -1,4 +1,5 @@
 const std = @import("std");
+const os = std.os;
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
@@ -18,11 +19,23 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const dirwlib = b.addStaticLibrary(.{
+        .name = "args",
+        .root_source_file = .{ .path = "src/dirwatcher.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // INSTALL STEP
+
     exe.linkLibC();
     b.installArtifact(arglib);
+    b.installArtifact(dirwlib);
     b.installArtifact(exe);
-    const run_cmd = b.addRunArtifact(exe);
 
+    // RUN STEP
+
+    const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
 
     if (b.args) |args| {
