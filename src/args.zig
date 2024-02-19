@@ -50,9 +50,10 @@ inline fn DetermineFlag(flag: [*:0]u8) !u3 {
                 std.debug.print("\tT | Time spent recording (in seconds)\n", .{});
                 std.debug.print("\tt | Time spent recording (in ticks)\n", .{});
                 std.debug.print("\tf | Time spent recording (in frames)\n", .{});
-                std.debug.print("\tS | Time stamp of the date the demo was recorded\n", .{});
+                std.debug.print("\tS | Time stamp of when the demo was started\n", .{});
+                std.debug.print("\tD | Date stamp of when the demo was started\n", .{});
                 std.debug.print("\tH | Hash of the demo header\n", .{});
-                std.debug.print("\tExample | -f pmTs\n\n", .{});
+                std.debug.print("\tExample | -f pmSD\n\n", .{});
 
                 os.exit(0);
             },
@@ -106,10 +107,8 @@ pub fn ParseArgs(argv: [][*:0]u8) !*Args {
                 args.fmtstr = try heap.raw_c_allocator.alloc(u8, arg_len);
                 for (arg, 0..arg_len) |c, i| {
                     switch (c) {
-                        'H', 's', 'p', 'm', 'g', 'T', 't', 'f', 'S' => args.fmtstr[i] = c,
-                        else => {
-                            return ArgErr.InvalidFormatChar;
-                        },
+                        'H', 's', 'p', 'm', 'g', 'T', 't', 'f', 'S', 'D' => args.fmtstr[i] = c,
+                        else => return ArgErr.InvalidFormatChar,
                     }
                 }
                 flag = 0;

@@ -6,6 +6,7 @@ const heap = std.heap;
 const mem = std.mem;
 const utf = std.unicode;
 const hash = std.hash;
+const time = std.time;
 
 const args = @import("./args.zig");
 
@@ -85,6 +86,8 @@ fn createFileName(file_str: []const u8, fmt_str: []const u8) ![]u8 {
     const HEADER_CHAR_MAP = [_]u8{ 'x', 'x', 's', 'p', 'm', 'g', 'T', 't', 'f', 'l' }; // 'x' are not supported for now
     var demo_fp = try fs.openFileAbsolute(file_str, .{ .mode = .read_only });
     defer (demo_fp.close());
+    var tstamp: time.epoch.EpochSeconds = undefined;
+    tstamp.secs = @as(u64, @intCast(time.timestamp()));
 
     var ret_str: []u8 = try heap.raw_c_allocator.alloc(u8, 5); // This is going to be slow as fuck but fuck it we ball
     ret_str[0] = 'D';
@@ -164,8 +167,28 @@ fn createFileName(file_str: []const u8, fmt_str: []const u8) ![]u8 {
 
                 break :blk;
             },
-            'S' => blk: {
-                // TODO: MAKE THIS OUTPUT A TIMESTAMP TO THE STRING
+            'S' => blk: { // Time stamp - TODO: THIS IS CURRENTLY IN UTC...
+                // TODO: NIGHTMARE FUEL KILL IT IMMEDIATELY
+                var day: time.epoch.DaySeconds = tstamp.getDaySeconds();
+                var fmtstr = try fmt.allocPrint(heap.raw_c_allocator, "{}:{}:{}", .{ day.getHoursIntoDay(), day.getMinutesIntoHour(), day.getSecondsIntoMinute() });
+                defer (heap.raw_c_allocator.free(fmtstr));
+                ret_str = try heap.raw_c_allocator.realloc(ret_str, ret_str.len + fmtstr.len + 1); // Reallocate for the new field - MAY ERROR
+                for (0..fmtstr.len, old_strlen..ret_str.len - 1) |i, j| ret_str[j] = fmtstr[i];
+
+                break :blk;
+            },
+            'D' => blk: { // Date stamp
+                // TODO: SAME AS ABOVE BUT WORSE
+                var day: time.epoch.EpochDay = tstamp.getEpochDay();
+                var month = day.calculateYearDay().calculateMonthDay().month;
+                var year = day.calculateYearDay().year;
+                var day_of_month = day.calculateYearDay().calculateMonthDay().day_index;
+                var fmtstr = try fmt.allocPrint(heap.raw_c_allocator, "{}-{}-{}", .{ month.numeric(), day_of_month, year });
+                defer (heap.raw_c_allocator.free(fmtstr));
+
+                ret_str = try heap.raw_c_allocator.realloc(ret_str, ret_str.len + fmtstr.len + 1); // Reallocate for the new field - MAY ERROR
+                for (0..fmtstr.len, old_strlen..ret_str.len - 1) |i, j| ret_str[j] = fmtstr[i];
+
                 break :blk;
             },
             else => return FmtErr.InvalidFormatArg,
