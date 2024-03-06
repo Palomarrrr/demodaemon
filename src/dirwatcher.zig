@@ -170,7 +170,7 @@ fn createFileName(file_str: []const u8, fmt_str: []const u8) ![]u8 {
             'S' => blk: { // Time stamp - TODO: THIS IS CURRENTLY IN UTC...
                 // TODO: NIGHTMARE FUEL KILL IT IMMEDIATELY
                 var day: time.epoch.DaySeconds = tstamp.getDaySeconds();
-                var fmtstr = try fmt.allocPrint(heap.raw_c_allocator, "{}:{}:{}", .{ day.getHoursIntoDay(), day.getMinutesIntoHour(), day.getSecondsIntoMinute() });
+                var fmtstr = try fmt.allocPrint(heap.raw_c_allocator, "H{d:0>2}-M{d:0>2}-S{d:0>2}", .{ day.getHoursIntoDay(), day.getMinutesIntoHour(), day.getSecondsIntoMinute() });
                 defer (heap.raw_c_allocator.free(fmtstr));
                 ret_str = try heap.raw_c_allocator.realloc(ret_str, ret_str.len + fmtstr.len + 1); // Reallocate for the new field - MAY ERROR
                 for (0..fmtstr.len, old_strlen..ret_str.len - 1) |i, j| ret_str[j] = fmtstr[i];
@@ -183,7 +183,7 @@ fn createFileName(file_str: []const u8, fmt_str: []const u8) ![]u8 {
                 var month = day.calculateYearDay().calculateMonthDay().month;
                 var year = day.calculateYearDay().year;
                 var day_of_month = day.calculateYearDay().calculateMonthDay().day_index;
-                var fmtstr = try fmt.allocPrint(heap.raw_c_allocator, "{}-{}-{}", .{ month.numeric(), day_of_month, year });
+                var fmtstr = try fmt.allocPrint(heap.raw_c_allocator, "M{d:0>2}-D{d:0>2}-Y{d:0>2}", .{ month.numeric(), day_of_month, year });
                 defer (heap.raw_c_allocator.free(fmtstr));
 
                 ret_str = try heap.raw_c_allocator.realloc(ret_str, ret_str.len + fmtstr.len + 1); // Reallocate for the new field - MAY ERROR
