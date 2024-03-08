@@ -69,14 +69,14 @@ pub fn ParseArgs(argv: [][*:0]u8) !*Args {
     if (argv.len < 2) return ArgErr.ArgVNotProvided;
     var flag: u3 = 0x0;
 
-    var emptystr = [_]u8{0}; // WHY CANT I JUST CHECK IF A VALUE IS NULL/UNDEFINED AAAAAAAAAAAAAA
+    var emptystr = [_]u8{0}; // WHY CANT I JUST CHECK IF A VALUE IS UNDEFINED AAAAAAAAAAAAAA
 
     var args: *Args = try heap.raw_c_allocator.create(Args);
 
     args.out_dir = &emptystr;
     args.in_dir = &emptystr;
     args.fmtstr = &emptystr;
-    args.tout = 60;
+    args.tout = 1;
 
     for (argv[1..argv.len]) |arg| {
         var arg_len: usize = 0;
@@ -124,8 +124,9 @@ pub fn ParseArgs(argv: [][*:0]u8) !*Args {
     }
 
     if (args.fmtstr[0] == 0) {
-        args.fmtstr = @constCast("pmt");
+        args.fmtstr = @constCast("pmD");
     }
+    // TODO Make these check if an env var is set with the directory
     if (args.out_dir[0] == 0) {
         return ArgErr.OutputDirectoryNotProvided;
     }

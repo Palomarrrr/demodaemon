@@ -25,13 +25,21 @@ pub const DirWatcher = struct {
 
     pub fn create(self: *DirWatcher, dir_str_in: []const u8, dir_str_out: []const u8, tout: u64) !void {
         // WARNING: THIS IS DEPRECATED IN RELEASES OF ZIG PAST 0.11.0!!!
-        self.dir_in = fs.openIterableDirAbsolute(dir_str_in, .{ .access_sub_paths = true, .no_follow = true }) catch {
-            std.debug.print("[DEMODAEMON] ERROR: Directory `{s}` does not exist\n", .{dir_str_in});
-            return fs.Dir.OpenError.BadPathName;
+        self.dir_in = fs.openIterableDirAbsolute(dir_str_in, .{ .access_sub_paths = true, .no_follow = true }) catch |err| {
+            switch (err) {
+                fs.Dir.OpenError.BadPathName => std.debug.print("\x1b[1;31m[DEMODAEMON]\x1b[0m ERROR: Directory `{s}` does not exist\n", .{dir_str_in}),
+                fs.Dir.OpenError.AccessDenied => std.debug.print("\x1b[1;31m[DEMODAEMON]\x1b[0m ERROR: You do not have permission to access directory `{s}`\n", .{dir_str_in}),
+                else => std.debug.print("\x1b[1;31m[DEMODAEMON]\x1b[0m ERROR: Something unexpected happened when accessing `{s}`\nReport this for help: {any}\n", .{ dir_str_in, err }),
+            }
+            return err;
         };
-        self.dir_out = fs.openIterableDirAbsolute(dir_str_out, .{ .access_sub_paths = true, .no_follow = true }) catch {
-            std.debug.print("[DEMODAEMON] ERROR: Directory `{s}` does not exist\n", .{dir_str_out});
-            return fs.Dir.OpenError.BadPathName;
+        self.dir_out = fs.openIterableDirAbsolute(dir_str_out, .{ .access_sub_paths = true, .no_follow = true }) catch |err| {
+            switch (err) {
+                fs.Dir.OpenError.BadPathName => std.debug.print("\x1b[1;31m[DEMODAEMON]\x1b[0m ERROR: Directory `{s}` does not exist\n", .{dir_str_out}),
+                fs.Dir.OpenError.AccessDenied => std.debug.print("\x1b[1;31m[DEMODAEMON]\x1b[0m ERROR: You do not have permission to access directory `{s}`\n", .{dir_str_out}),
+                else => std.debug.print("\x1b[1;31m[DEMODAEMON]\x1b[0m ERROR: Something unexpected happened when accessing `{s}`\nReport this for help: {any}\n", .{ dir_str_out, err }),
+            }
+            return err;
         };
 
         // Copy the directory string over
@@ -72,11 +80,37 @@ pub const DirWatcher = struct {
     }
 
     pub fn moveToOutputDir(self: *DirWatcher, file_str: []const u8, fmtstr: []u8) !void {
-        var new_file_name: []u8 = try createFileName(file_str, fmtstr);
-        var old_file_str: []u8 = try mem.concat(heap.raw_c_allocator, u8, &[_][]u8{ self.dir_str_in, @constCast("/"), new_file_name, @constCast(".dem") });
-        try os.rename(file_str, old_file_str);
+        var new_file_name: []u8 = createFileName(file_str, fmtstr) catch |err| {
+            //std.debug.print("\x1b[1;31m[DEMODAEMON]\x1b[0m ERROR: ", .{});
+            //switch (err) {
+            //    fs.File.OpenError.AccessDenied => std.debug.print("You do not have permission to write files in directory `{s}`\n", .{self.*.dir_str_out}),
+            //    fs.File.OpenError.PathAlreadyExists => std.debug.print("File `{s}` already exists...\n", .{new_file_name}),
+            //    else => std.debug.print("\x1b[1;31m[DEMODAEMON]\x1b[0m ERROR: Something unexpected happened when accessing `{s}`\nReport this for help: {any}\n", .{ dir_str_out, err }),
+            //}
+            return err;
+        };
         var new_file_str: []u8 = try mem.concat(heap.raw_c_allocator, u8, &[_][]u8{ self.dir_str_out, @constCast("/"), new_file_name[0 .. new_file_name.len - 1], @constCast(".dem") });
-        try os.rename(old_file_str, new_file_str);
+        var old_file_str: []u8 = try mem.concat(heap.raw_c_allocator, u8, &[_][]u8{ self.dir_str_in, @constCast("/"), new_file_name, @constCast(".dem") });
+        os.rename(file_str, old_file_str) catch |err| {
+            std.debug.print("\x1b[1;31m[DEMODAEMON]\x1b[0m ERROR: ", .{});
+            switch (err) {
+                os.RenameError.AccessDenied => std.debug.print("You do not have permission to write files in directory `{s}`\n", .{self.*.dir_str_in}),
+                os.RenameError.PathAlreadyExists => std.debug.print("File `{s}` already exists...\n", .{old_file_str}),
+                os.RenameError.NameTooLong => std.debug.print("File name `{s}` is too long\n", .{old_file_str}),
+                else => std.debug.print("Something unexpected happened when accessing the file\nReport this for help: {any}\n", .{err}),
+            }
+            return err;
+        };
+        os.rename(old_file_str, new_file_str) catch |err| {
+            std.debug.print("\x1b[1;31m[DEMODAEMON]\x1b[0m ERROR: ", .{});
+            switch (err) {
+                os.RenameError.AccessDenied => std.debug.print("You do not have permission to write files in directory `{s}`\n", .{self.*.dir_str_out}),
+                os.RenameError.PathAlreadyExists => std.debug.print("File `{s}` already exists...\n", .{new_file_str}),
+                os.RenameError.NameTooLong => std.debug.print("File name `{s}` is too long\n", .{new_file_str}),
+                else => std.debug.print("Something unexpected happened when accessing the file\nReport this for help: {any}\n", .{err}),
+            }
+            return err;
+        };
     }
 };
 
@@ -127,7 +161,7 @@ fn createFileName(file_str: []const u8, fmt_str: []const u8) ![]u8 {
                 break :blk;
             },
 
-            'T', 't', 'f' => blk: { // TODO: Make a special case for 'T' to handle float values
+            'T', 't', 'f' => blk: {
                 var buffer: []u8 = try heap.raw_c_allocator.alloc(u8, @intCast(4));
                 defer (heap.raw_c_allocator.free(buffer));
 
@@ -144,7 +178,13 @@ fn createFileName(file_str: []const u8, fmt_str: []const u8) ![]u8 {
                 for (0..buffer.len) |i| {
                     num_out += (@as(i32, @intCast(@as(u8, @bitCast(buffer[i])))) * (std.math.pow(i32, 16, @as(i32, @intCast(i * 2))))); // Nightmare fuel
                 }
-                var fmtstr = try fmt.allocPrint(heap.raw_c_allocator, "{}", .{num_out});
+                var fmtstr: []u8 = undefined;
+
+                // Handle case 'T' since that is a float and not an int
+                if (ch == 'T') {
+                    var flt_out: f32 = @as(f32, @bitCast(num_out));
+                    fmtstr = try fmt.allocPrint(heap.raw_c_allocator, "{d:.0}", .{flt_out}); // Don't include any dots since that may fuck with things
+                } else fmtstr = try fmt.allocPrint(heap.raw_c_allocator, "{}", .{num_out});
                 defer (heap.raw_c_allocator.free(fmtstr));
 
                 ret_str = try heap.raw_c_allocator.realloc(ret_str, ret_str.len + fmtstr.len + 1); // Reallocate for the new field - MAY ERROR
@@ -167,8 +207,8 @@ fn createFileName(file_str: []const u8, fmt_str: []const u8) ![]u8 {
 
                 break :blk;
             },
+            // TODO: These next two are a fucking mess... see if you can clean them up a bit
             'S' => blk: { // Time stamp - TODO: THIS IS CURRENTLY IN UTC...
-                // TODO: NIGHTMARE FUEL KILL IT IMMEDIATELY
                 var day: time.epoch.DaySeconds = tstamp.getDaySeconds();
                 var fmtstr = try fmt.allocPrint(heap.raw_c_allocator, "H{d:0>2}-M{d:0>2}-S{d:0>2}", .{ day.getHoursIntoDay(), day.getMinutesIntoHour(), day.getSecondsIntoMinute() });
                 defer (heap.raw_c_allocator.free(fmtstr));
@@ -178,7 +218,6 @@ fn createFileName(file_str: []const u8, fmt_str: []const u8) ![]u8 {
                 break :blk;
             },
             'D' => blk: { // Date stamp
-                // TODO: SAME AS ABOVE BUT WORSE
                 var day: time.epoch.EpochDay = tstamp.getEpochDay();
                 var month = day.calculateYearDay().calculateMonthDay().month;
                 var year = day.calculateYearDay().year;
@@ -194,23 +233,6 @@ fn createFileName(file_str: []const u8, fmt_str: []const u8) ![]u8 {
             else => return FmtErr.InvalidFormatArg,
         }
         ret_str[ret_str.len - 1] = '-'; // Add in a separator
-    }
-    return ret_str;
-}
-
-// FIXME: Don't think I need this anymore. Probably just remove?
-fn cutPath(str: []const u8) ![]u8 { // Get the name of a file
-    var name_len: u8 = 0;
-    var name_pos: usize = 0;
-    for (str, 0..str.len) |c, i| { // Find the size of the file name
-        if (c == '/') {
-            name_len = 0;
-            name_pos = i + 1;
-        } else name_len += 1;
-    }
-    var ret_str = try heap.raw_c_allocator.alloc(u8, name_len);
-    for (0..ret_str.len) |i| { // Copy the string
-        ret_str[i] = str[name_pos + i];
     }
     return ret_str;
 }
