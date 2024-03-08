@@ -9,11 +9,11 @@ const Args = @import("./args.zig");
 const DirWatcher = @import("./dirwatcher.zig");
 
 pub fn main() !void {
-    var arg_ret: *Args.Args = Args.ParseArgs(os.argv) catch |err| {
+    const arg_ret: *Args.Args = Args.ParseArgs(os.argv) catch |err| {
         std.debug.print("\x1b[1;31m[DEMODAEMON]\x1b[0m ERROR: ", .{});
         switch (err) {
             Args.ArgErr.InvalidCMDFlag => std.debug.print("Invalid command flag provided\n", .{}),
-            Args.ArgErr.ArgVNotProvided => std.debug.print("No args provided. Use -h for usage flags\n", .{}),
+            //Args.ArgErr.ArgVNotProvided => std.debug.print("No args provided. Use -h for usage flags\n", .{}),
             Args.ArgErr.InvalidFormatChar => std.debug.print("Invalid format char provided\n", .{}),
             Args.ArgErr.InputDirectoryNotProvided => std.debug.print("No demo input directory provided\n", .{}),
             Args.ArgErr.OutputDirectoryNotProvided => std.debug.print("No demo output directory provided\n", .{}),

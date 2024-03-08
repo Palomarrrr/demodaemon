@@ -66,7 +66,7 @@ inline fn DetermineFlag(flag: [*:0]u8) !u3 {
 }
 
 pub fn ParseArgs(argv: [][*:0]u8) !*Args {
-    if (argv.len < 2) return ArgErr.ArgVNotProvided;
+    //if (argv.len < 2) return ArgErr.ArgVNotProvided;
     var flag: u3 = 0x0;
 
     var emptystr = [_]u8{0}; // WHY CANT I JUST CHECK IF A VALUE IS UNDEFINED AAAAAAAAAAAAAA
@@ -123,15 +123,14 @@ pub fn ParseArgs(argv: [][*:0]u8) !*Args {
         }
     }
 
-    if (args.fmtstr[0] == 0) {
-        args.fmtstr = @constCast("pmD");
-    }
-    // TODO Make these check if an env var is set with the directory
-    if (args.out_dir[0] == 0) {
-        return ArgErr.OutputDirectoryNotProvided;
-    }
+    if (args.fmtstr[0] == 0) args.fmtstr = @constCast(os.getenv("DEMODAEMON_FMT") orelse "pmD");
     if (args.in_dir[0] == 0) {
-        return ArgErr.InputDirectoryNotProvided;
+        args.in_dir = @constCast(os.getenv("DEMODAEMON_IN") orelse return ArgErr.InputDirectoryNotProvided);
+        if (args.in_dir.len == 0) return ArgErr.InputDirectoryNotProvided; // If the var is set but not defined
+    }
+    if (args.out_dir[0] == 0) {
+        args.out_dir = @constCast(os.getenv("DEMODAEMON_OUT") orelse return ArgErr.OutputDirectoryNotProvided);
+        if (args.out_dir.len == 0) return ArgErr.OutputDirectoryNotProvided;
     }
     return args;
 }
